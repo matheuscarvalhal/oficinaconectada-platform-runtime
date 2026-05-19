@@ -19,7 +19,7 @@ output "oidc_provider_arn" {
 }
 
 output "external_dns_role_arn" {
-  value = aws_iam_role.external_dns.arn
+  value = length(aws_iam_role.external_dns) > 0 ? aws_iam_role.external_dns[0].arn : null
 }
 
 output "external_secrets_role_arn" {

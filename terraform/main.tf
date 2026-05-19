@@ -182,6 +182,8 @@ resource "kubernetes_namespace" "external_secrets" {
 }
 
 resource "aws_iam_role" "external_dns" {
+  count = length(var.hosted_zone_arns) > 0 ? 1 : 0
+
   name = "${var.project_name}-external-dns-role"
 
   assume_role_policy = jsonencode({
@@ -205,6 +207,8 @@ resource "aws_iam_role" "external_dns" {
 }
 
 resource "aws_iam_policy" "external_dns" {
+  count = length(var.hosted_zone_arns) > 0 ? 1 : 0
+
   name = "${var.project_name}-external-dns-policy"
 
   policy = jsonencode({
@@ -233,8 +237,9 @@ resource "aws_iam_policy" "external_dns" {
 }
 
 resource "aws_iam_role_policy_attachment" "external_dns" {
-  role       = aws_iam_role.external_dns.name
-  policy_arn = aws_iam_policy.external_dns.arn
+  count      = length(var.hosted_zone_arns) > 0 ? 1 : 0
+  role       = aws_iam_role.external_dns[0].name
+  policy_arn = aws_iam_policy.external_dns[0].arn
 }
 
 resource "aws_iam_role" "external_secrets" {
@@ -309,10 +314,58 @@ resource "aws_iam_role" "alb_controller" {
   tags = local.common_tags
 }
 
+resource "aws_iam_policy" "alb_controller" {
+  name = "${var.project_name}-alb-controller-policy"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "acm:DescribeCertificate",
+          "acm:ListCertificates",
+          "acm:GetCertificate",
+          "cognito-idp:DescribeUserPoolClient",
+          "ec2:AuthorizeSecurityGroupIngress",
+          "ec2:CreateSecurityGroup",
+          "ec2:CreateTags",
+          "ec2:DeleteSecurityGroup",
+          "ec2:DeleteTags",
+          "ec2:Describe*",
+          "ec2:ModifyInstanceAttribute",
+          "ec2:ModifyNetworkInterfaceAttribute",
+          "ec2:RevokeSecurityGroupIngress",
+          "elasticloadbalancing:*",
+          "iam:CreateServiceLinkedRole",
+          "iam:GetServerCertificate",
+          "iam:ListServerCertificates",
+          "shield:DescribeProtection",
+          "shield:GetSubscriptionState",
+          "shield:CreateProtection",
+          "shield:DeleteProtection",
+          "tag:GetResources",
+          "tag:TagResources",
+          "waf-regional:GetWebACLForResource",
+          "waf-regional:GetWebACL",
+          "waf-regional:AssociateWebACL",
+          "waf-regional:DisassociateWebACL",
+          "wafv2:GetWebACLForResource",
+          "wafv2:GetWebACL",
+          "wafv2:AssociateWebACL",
+          "wafv2:DisassociateWebACL"
+        ]
+        Resource = ["*"]
+      }
+    ]
+  })
+
+  tags = local.common_tags
+}
+
 resource "aws_iam_role_policy_attachment" "alb_controller" {
-  count      = var.alb_controller_policy_arn != "" ? 1 : 0
   role       = aws_iam_role.alb_controller.name
-  policy_arn = var.alb_controller_policy_arn
+  policy_arn = aws_iam_policy.alb_controller.arn
 }
 
 resource "helm_release" "metrics_server" {
@@ -351,6 +404,7 @@ resource "helm_release" "external_secrets" {
 }
 
 resource "helm_release" "external_dns" {
+  count      = length(var.hosted_zone_arns) > 0 ? 1 : 0
   name       = "external-dns"
   namespace  = "kube-system"
   repository = "https://kubernetes-sigs.github.io/external-dns/"
@@ -374,7 +428,7 @@ resource "helm_release" "external_dns" {
 
   set {
     name  = "serviceAccount.annotations.eks\\.amazonaws\\.com/role-arn"
-    value = aws_iam_role.external_dns.arn
+    value = aws_iam_role.external_dns[0].arn
   }
 
   dynamic "set" {
