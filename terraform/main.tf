@@ -119,12 +119,12 @@ resource "aws_eks_node_group" "main" {
   subnet_ids      = data.terraform_remote_state.foundation.outputs.private_subnet_ids
 
   scaling_config {
-    desired_size = 2
-    min_size     = 1
+    desired_size = 4
+    min_size     = 4
     max_size     = 4
   }
 
-  instance_types = ["t3.medium"]
+  instance_types = ["t3.micro"]
 
   depends_on = [
     aws_iam_role_policy_attachment.eks_worker_node_policy,
