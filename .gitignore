@@ -4,6 +4,7 @@
 .terraform.lock.hcl
 terraform.tfvars
 *.auto.tfvars
+*.auto.tfvars.json
 crash.log
 .idea/
 .DS_Store
