@@ -27,7 +27,7 @@ variable "hosted_zone_arns" {
 variable "domain_filters" {
   type        = list(string)
   description = "Dominios controlados pelo external-dns"
-  default     = ["oficinaconectada.com"]
+  default     = ["oficinaconectada.app.br"]
 }
 
 variable "alb_controller_policy_arn" {
