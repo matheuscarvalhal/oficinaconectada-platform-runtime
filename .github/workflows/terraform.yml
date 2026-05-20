@@ -1,0 +1,42 @@
+﻿name: Deploy platform runtime
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AWS_REGION: sa-east-1
+  TARGET_ENVIRONMENT: prod
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_GITHUB_ACTIONS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+      - name: Load environment secrets from AWS Secrets Manager
+        shell: bash
+        run: |
+          SECRET_ID="oficinaconectada/${TARGET_ENVIRONMENT}/infra/platform-runtime"
+          SECRET_JSON=$(aws secretsmanager get-secret-value --secret-id "$SECRET_ID" --query SecretString --output text)
+          echo "TF_VAR_cluster_name=$(echo "$SECRET_JSON" | jq -r '.cluster_name')" >> $GITHUB_ENV
+          echo "TF_VAR_alb_controller_policy_arn=$(echo "$SECRET_JSON" | jq -r '.alb_controller_policy_arn')" >> $GITHUB_ENV
+          echo "TF_VAR_domain_filters=$(echo "$SECRET_JSON" | jq -c '.domain_filters')" >> $GITHUB_ENV
+          echo "TF_VAR_hosted_zone_arns=$(echo "$SECRET_JSON" | jq -c '.hosted_zone_arns')" >> $GITHUB_ENV
+      - name: Terraform Init
+        working-directory: ./terraform
+        run: terraform init -input=false
+      - name: Terraform Apply
+        working-directory: ./terraform
+        run: terraform apply -auto-approve -input=false
